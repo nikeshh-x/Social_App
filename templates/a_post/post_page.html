@@ -1,0 +1,36 @@
+{% extends "layouts/b.html" %}
+
+{% block content %}
+{% include "a_post/post.html" %}
+{% if user.is_authenticated %}
+    <div class="card !pb-0 -mt-3">
+        <form hx-post="{% url 'comment-sent' post.id %}"
+            hx-target="#tab-contents"
+            hx-swap="afterbegin"
+            class="flex items-center p-4" autocomplete="off"
+            _="on htmx:afterRequest reset() me">
+            {% csrf_token %}
+            {{commentForm}}
+            <button @click="open = false" class="block ml-2" type="submit">Submit</button>
+        </form>
+    </div>
+{% endif %}
+
+    
+<div class="mb-20">
+    <div id="tabs" class="ml-4 flex gap-1 mb-4 {% if post.comments.count %}hidden{% endif %}" hx-target="#tab-contents" hx-swap="innterHTML"
+    _="on htmx:afterOnLoad take .selected for event.target">
+        <a hx-get="{% url 'post' post.id %}" class="tab selected">Newest First</a> 
+        <a hx-get="{% url 'post' post.id %}?top" class="tab">Top Comments</a>
+    </div>
+
+    <div id="tab-contents">
+
+        {% for comment in post.comments.all %}
+            {% include "a_post/comment.html" %}
+        {% endfor %}
+
+    </div>
+</div>
+
+{% endblock content %}
