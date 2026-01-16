@@ -1,7 +1,19 @@
 from django.db import models
 from django.contrib.auth.models import User
 import uuid
+from django.conf import settings
 # Create your models here.
+
+# Add this function at the TOP (after imports)
+def get_cloudinary_storage():
+    """Return Cloudinary storage if in production, else None"""
+    if settings.ENVIRONMENT == 'production':
+        try:
+            from cloudinary_storage.storage import MediaCloudinaryStorage
+            return MediaCloudinaryStorage()
+        except ImportError:
+            return None
+    return None
 
 class Post(models.Model):
     title = models.CharField(max_length=200)
@@ -30,7 +42,7 @@ class LikedPost(models.Model):
 class Tag(models.Model):
     name = models.CharField(max_length=50)
     slug = models.SlugField(max_length=50, unique=True)
-    image = models.FileField(upload_to='icons/', null=True, blank=True)
+    image = models.FileField(upload_to='icons/', null=True, blank=True, storage=get_cloudinary_storage())
 
     def __str__(self):
         return self.name

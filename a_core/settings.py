@@ -14,14 +14,13 @@ from pathlib import Path
 from environ import Env
 import dj_database_url
 
-env = Env()
-Env.read_env()
-
-ENVIRONMENT = env('ENVIRONMENT',default='production')
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+env = Env()
+Env.read_env(BASE_DIR / '.env')
+
+ENVIRONMENT = env('ENVIRONMENT',default='production')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -33,7 +32,7 @@ SECRET_KEY = env('SECRET_KEY')
 if ENVIRONMENT == 'development':
     DEBUG = True
 else:
-    DEBUG = True
+    DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -52,6 +51,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cloudinary_storage',
+    'cloudinary',
     'django.contrib.sites',
 
     # Installed Packages
@@ -61,6 +62,7 @@ INSTALLED_APPS = [
     'django_cleanup.apps.CleanupConfig',
     'django_htmx',
     'admin_honeypot',
+
 
     # My Apps 
     'a_post',
@@ -117,8 +119,8 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-POSTGRES_LOCALLY = False
-if ENVIRONMENT == 'production' or POSTGRES_LOCALLY == True:
+
+if ENVIRONMENT == 'production':
     DATABASES['default'] = dj_database_url.parse(env('DATABASE_URL'))
 
 # Password validation
@@ -152,16 +154,53 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
-
+# ===== STATIC FILES =====
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT =  BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-
+# ===== MEDIA FILES =====
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+
+if ENVIRONMENT == 'production':
+    # Production: Use Cloudinary
+    STORAGES = {
+        "default": {
+            "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    
+    # Cloudinary configuration
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': env('CLOUD_NAME'),
+        'API_KEY': env('CLOUD_API_KEY'),
+        'API_SECRET': env('CLOUD_API_SECRET'),
+    }
+    
+    print("⚡ PRODUCTION: Using Cloudinary for media storage")
+    
+    # ⚠️ IMPORTANT: DO NOT set MEDIA_ROOT in production
+    # Cloudinary doesn't use MEDIA_ROOT
+    
+else:
+    # Development: Use local storage
+    MEDIA_ROOT = BASE_DIR / 'media'
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {
+                "location": MEDIA_ROOT,
+                "base_url": MEDIA_URL,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    print("💻 DEVELOPMENT: Using local media storage")
 
 
 LOGIN_REDIRECT_URL = '/'  # where to go after login
@@ -171,3 +210,25 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 
 ACCOUNT_USERNAME_BLACKLIST = ['admin', 'dashbaord', 'administrator', 'root', 'superuser','category', 'post', 'profile', 'accounts']
+
+# ===== FORCE CLOUDINARY INITIALIZATION =====
+if ENVIRONMENT == 'production' and 'cloudinary_storage' in INSTALLED_APPS:
+    # This ensures Cloudinary is properly loaded
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    
+    # Configure Cloudinary
+    cloudinary.config(
+        cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+        api_key=CLOUDINARY_STORAGE['API_KEY'],
+        api_secret=CLOUDINARY_STORAGE['API_SECRET']
+    )
+    
+    # Verify connection
+    try:
+        result = cloudinary.api.ping()
+        print(f"✅ Cloudinary connected: {result.get('status')}")
+    except Exception as e:
+        print(f"⚠️ Cloudinary warning: {e}")
+        print("   Media uploads will fail in production!")

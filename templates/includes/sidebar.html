@@ -8,7 +8,7 @@
       {% for category in categories %}
       <li class="{% if category.slug == tag.slug %}highlight{% endif %}">
         <a href="{% url 'category' category.slug %}">
-          <img class="w-8 h-8 object-cover mr-2" src="{{ category.image.url }}" />
+          <img class="w-8 h-8 object-cover mr-2" src="{% if category.image %}{{ category.image.url }}{% else %}{% static 'images/avatar_default.svg' %}{% endif %}" />
           <span class="font-bold text-sm">{{category.name}}</span>
         </a>
       </li>
@@ -58,14 +58,12 @@
                   <img class="w-6 h-6 rounded-full object-cover mr-1"
                   src="{{comment.author.profile.avatar}}" />
                 <span class="font-bold text-sm mr-1">{{comment.author.username}}</span>
-                {%else%}
+                {% else %}
                 <img class="w-6 h-6 rounded-full object-cover mr-1"
                   src="{% static 'images/avatar_default.svg' %}" />
                 <span class="text-sm mr-1">No Author</span>
                 {% endif %}
-              <img class="w-6 h-6 rounded-full object-cover mr-1"
-                src="{{comment.author.profile.avatar}}" />
-              <span class="font-bold text-sm mr-1 truncate">{{comment.author.username}} : {{comment.body|truncatechars:10}}</span>
+              <span class="font-bold text-sm mr-1 truncate">{% if comment.author %}{{comment.author.username}}{% else %}Anonymous{% endif %} : {{comment.body|truncatechars:10}}</span>
             </div>
             <span class="{% if user in comment.likes.all %}font-bold{%else%}font-light{% endif %} text-sm  text-grey-500 shrink-0">{{comment.likes.count}} Like{{comment.likes.count|pluralize:'s'}} / {{comment.replies.count}}</span>
           </a>
