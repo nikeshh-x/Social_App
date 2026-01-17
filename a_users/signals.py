@@ -3,7 +3,7 @@ from django.dispatch import receiver
 from django.contrib.auth.models import User
 from .models import Profile
 from django.shortcuts import get_object_or_404
-
+from allauth.account.models import EmailAddress
 
 @receiver(post_save, sender=User)
 def create_profile(sender, instance, created, **kwargs):
@@ -23,3 +23,16 @@ def update_user(sender, instance, created, **kwargs):
         if user.email != profile.email:
             user.email = profile.email
             user.save()
+
+@receiver(post_save, sender=Profile)
+def update_account_email(sender, instance, created, **kwargs):
+    profile = instance
+    if not created:
+        try:
+            email_address = EmailAddress.objects.get_primary(profile.user)
+            if email_address.email != profile.email:
+                email_address.email = profile.email
+                email_address.verified = False
+                email_address.save()
+        except:
+            pass

@@ -9,6 +9,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.db.models import Count
+from allauth.account.models import EmailAddress
+
 # Create your views here.
 
 def profile_view(request, username=None):
@@ -46,7 +48,11 @@ def profile_edit_view(request):
         form = ProfileForm(request.POST, request.FILES, instance=request.user.profile)
         if form.is_valid():
             form.save()
-            return redirect('profile')
+
+            if request.user.emailaddress_set.get(primary=True).verified:       
+                return redirect('profile')
+            else:
+                return redirect('profile-verify-email')
     
     if request.path == reverse('profile-onboarding'):
         template = 'a_users/profile_onboarding.html'
@@ -64,3 +70,24 @@ def profile_delete_view(request):
         return redirect('home')
     return render(request, 'a_users/profile_delete.html')
     
+@login_required
+def profile_verify_email(request):
+    email = request.user.email
+
+    if not email:
+        messages.error(request, "No email address found.")
+        return redirect('profile')
+
+    email_address, created = EmailAddress.objects.get_or_create(
+        user=request.user,
+        email=email,
+        defaults={'primary': True}
+    )
+
+    if not email_address.verified:
+        email_address.send_confirmation(request)
+        messages.success(request, "Verification email sent. Check your inbox.")
+    else:
+        messages.info(request, "Your email is already verified.")
+
+    return redirect('profile')
